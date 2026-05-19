@@ -6,6 +6,9 @@ import { query } from '../config/database.js';
 
 const router = express.Router();
 
+// Admin code from environment (set in .env)
+const ADMIN_CODE = process.env.ADMIN_CODE || 'ADMIN2024';
+
 // Register a new user
 router.post('/register', [
   body('email').isEmail().normalizeEmail(),
@@ -14,7 +17,9 @@ router.post('/register', [
   body('last_name').trim().notEmpty(),
   body('location').optional().trim(),
   body('city').optional().trim(),
-  body('phone').optional().isMobilePhone()
+  body('phone').optional().isMobilePhone(),
+  body('admin_code').optional().trim(),
+  body('is_admin').optional().isBoolean()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -26,7 +31,13 @@ router.post('/register', [
       });
     }
 
-    const { email, password, first_name, last_name, location, city, phone } = req.body;
+    const { email, password, first_name, last_name, location, city, state = 'Philippines', phone, admin_code, is_admin } = req.body;
+
+    // Convert undefined/empty to null for optional fields
+    const locationValue = location || null;
+    const cityValue = city || null;
+    const stateValue = state || 'Philippines';
+    const phoneValue = phone || null;
 
     // Check if user already exists
     const existingUser = await query('SELECT id FROM users WHERE email = ?', [email]);
@@ -41,11 +52,14 @@ router.post('/register', [
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
+    // Determine if admin - accept is_admin directly or check admin_code
+    const isAdmin = is_admin === true || (admin_code && admin_code === ADMIN_CODE);
+
     // Insert new user
     const result = await query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, location, city, phone) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [email, passwordHash, first_name, last_name, location, city, phone]
+      `INSERT INTO users (email, password_hash, first_name, last_name, location, city, state, phone, is_active, is_verified, is_admin) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)`,
+      [email, passwordHash, first_name, last_name, locationValue, cityValue, stateValue, phoneValue, isAdmin ? 1 : 0]
     );
 
     const userId = result.insertId;
@@ -72,7 +86,8 @@ router.post('/register', [
           last_name,
           location,
           city,
-          phone
+          phone,
+          is_admin: isAdmin
         }
       }
     });
@@ -103,20 +118,28 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    // Find user by email
+    // Find user by email (without is_active filter first to give specific error)
     const users = await query(
-      'SELECT * FROM users WHERE email = ? AND is_active = 1',
+      'SELECT * FROM users WHERE email = ?',
       [email]
     );
 
     if (users.length === 0) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'No account found with this email address'
       });
     }
 
     const user = users[0];
+
+    // Check if user is active
+    if (!user.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact support.'
+      });
+    }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
@@ -152,9 +175,12 @@ router.post('/login', [
           phone: user.phone,
           profile_image: user.profile_image,
           is_verified: user.is_verified,
+          is_admin: user.is_admin || false,
           rating_avg: user.rating_avg,
           total_reviews: user.total_reviews
-        }
+        },
+        // Redirect based on role
+        redirectUrl: user.is_admin ? '/admin/dashboard' : '/dashboard'
       }
     });
 
@@ -184,7 +210,7 @@ router.get('/profile', async (req, res) => {
     
     const users = await query(
       `SELECT id, email, first_name, last_name, location, city, state, country, phone, bio, 
-              profile_image, is_verified, rating_avg, total_reviews, created_at
+              profile_image, is_verified, is_admin, rating_avg, total_reviews, created_at
        FROM users WHERE id = ? AND is_active = 1`,
       [decoded.userId]
     );

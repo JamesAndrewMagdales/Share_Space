@@ -19,7 +19,7 @@ export const authenticateToken = async (req, res, next) => {
     
     // Get user from database to ensure they still exist and are active
     const user = await query(
-      'SELECT id, email, first_name, last_name, is_verified, is_active FROM users WHERE id = ? AND is_active = 1',
+      'SELECT id, email, first_name, last_name, is_verified, is_active, is_admin FROM users WHERE id = ? AND is_active = 1',
       [decoded.userId]
     );
 
@@ -79,7 +79,7 @@ export const optionalAuth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await query(
-      'SELECT id, email, first_name, last_name, is_verified, is_active FROM users WHERE id = ? AND is_active = 1',
+      'SELECT id, email, first_name, last_name, is_verified, is_active, is_admin FROM users WHERE id = ? AND is_active = 1',
       [decoded.userId]
     );
 

@@ -2,6 +2,7 @@
   "name": "shareserve-backend",
   "version": "1.0.0",
   "description": "Backend API for ShareServe community skill-sharing platform",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
