@@ -18,6 +18,7 @@ CREATE TABLE users (
     bio TEXT,
     profile_image VARCHAR(500),
     is_verified BOOLEAN DEFAULT FALSE,
+    is_admin BOOLEAN DEFAULT FALSE,
     verification_document VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -27,7 +28,8 @@ CREATE TABLE users (
     total_reviews INT DEFAULT 0,
     INDEX idx_email (email),
     INDEX idx_location (city, state),
-    INDEX idx_verified (is_verified)
+    INDEX idx_verified (is_verified),
+    INDEX idx_is_admin (is_admin)
 );
 
 -- ============================================
@@ -100,7 +102,7 @@ CREATE TABLE services (
     description TEXT NOT NULL,
     category_id INT,
     price DECIMAL(10,2) DEFAULT 0.00,
-    price_type ENUM('Fixed', 'Hourly', ' negotiable', 'Free') DEFAULT 'Fixed',
+    price_type ENUM('Fixed', 'Hourly', 'Negotiable', 'Free') DEFAULT 'Fixed',
     location VARCHAR(255),
     city VARCHAR(100),
     is_remote BOOLEAN DEFAULT FALSE,
