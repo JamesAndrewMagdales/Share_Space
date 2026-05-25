@@ -4,7 +4,6 @@ import {
   Menu, 
   X, 
   Home, 
-  Search, 
   User, 
   MessageCircle,
   PlusCircle,
@@ -21,7 +20,6 @@ const Layout = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -44,13 +42,6 @@ const Layout = () => {
     localStorage.removeItem('user');
     setIsLoggedIn(false);
     navigate('/');
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-    }
   };
 
   const navigation = [];
@@ -90,9 +81,10 @@ const Layout = () => {
           {/* User Actions */}
           <div className="header-actions">
             {isLoggedIn ? (
-              <>
-                
-              </>
+              <Link to="/dashboard" className="auth-btn dashboard">
+                <Home size={20} />
+                <span>Dashboard</span>
+              </Link>
             ) : (
               <>
                 <Link to="/login" className="auth-btn login">
@@ -106,21 +98,6 @@ const Layout = () => {
               </>
             )}
           </div>
-
-          {/* Search Bar (Centered) - Hidden on Search page to avoid duplication */}
-          {location.pathname !== '/search' && (
-            <form onSubmit={handleSearch} className="header-search centered-search">
-              <input
-                type="text"
-                placeholder="Search services..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <button type="submit">
-                <Search size={18} />
-              </button>
-            </form>
-          )}
 
           {/* Mobile Menu Button */}
           <button

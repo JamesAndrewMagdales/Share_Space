@@ -85,60 +85,6 @@
   gap: 1rem;
 }
 
-/* Header Search */
-.header-search {
-  display: flex;
-  align-items: center;
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.25rem;
-  transition: all 0.3s ease;
-}
-
-.header-search:focus-within {
-  border-color: #3b82f6;
-  background-color: white;
-}
-
-.header-search.centered-search {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.header-search.centered-search input {
-  min-width: 250px;
-}
-
-.header-search input {
-  border: none;
-  background: transparent;
-  padding: 0.5rem;
-  font-size: 0.875rem;
-  outline: none;
-  min-width: 180px;
-}
-
-.header-search input::placeholder {
-  color: #9ca3af;
-}
-
-.header-search button {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  cursor: pointer;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.header-search button:hover {
-  color: #3b82f6;
-}
-
 .action-btn {
   background: none;
   border: none;
