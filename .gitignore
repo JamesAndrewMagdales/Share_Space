@@ -1,0 +1,11 @@
+# Dependencies (reinstall with npm install)
+node_modules/
+
+# Local environment settings and secrets (copy backend/.env.example to backend/.env)
+.env
+.env.*
+!.env.example
+
+# Logs and build output
+*.log
+dist/
