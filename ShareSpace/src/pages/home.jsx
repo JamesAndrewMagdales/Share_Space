@@ -1,365 +1,240 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Search, 
-  MapPin, 
-  Star, 
-  Users, 
-  Shield, 
-  Zap,
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Search,
+  MapPin,
   ArrowRight,
-  Heart,
-  Code,
-  Brush,
-  Wrench,
-  BookOpen,
-  Music,
-  Camera,
-  Car,
-  Home as HomeIcon,
-  Dumbbell
+  CalendarCheck,
+  ParkingSquare,
+  ShieldCheck,
+  Wallet,
+  Clock,
+  ListPlus,
+  CheckCircle2,
+  Car
 } from 'lucide-react';
+import SpaceCard, { SpaceCardSkeleton } from '../components/SpaceCard';
+import { PARKING_TYPES } from '../constants/parking';
+import { listSpaces } from '../lib/api';
 import './Home.css';
 
-const Home = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [featuredServices, setFeaturedServices] = useState([]);
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Tech & IT', icon: Code, count: 124 },
-    { id: 2, name: 'Home & Garden', icon: HomeIcon, count: 89 },
-    { id: 3, name: 'Teaching', icon: BookOpen, count: 67 },
-    { id: 4, name: 'Art & Design', icon: Brush, count: 54 },
-    { id: 5, name: 'Health & Fitness', icon: Dumbbell, count: 43 },
-    { id: 6, name: 'Music', icon: Music, count: 38 },
-    { id: 7, name: 'Photography', icon: Camera, count: 32 },
-    { id: 8, name: 'Automotive', icon: Car, count: 28 }
-  ]);
+const DRIVER_STEPS = [
+  { icon: Search, title: 'Search where you’re going', text: 'Filter by area, vehicle size, covered parking, CCTV or EV charging.' },
+  { icon: CalendarCheck, title: 'Request a booking', text: 'Pick a date, arrival time and how long you’ll stay. You see the total before you send.' },
+  { icon: ParkingSquare, title: 'Park and go', text: 'Once the host approves, drive in. Leave a review afterwards to help other drivers.' }
+];
 
-  const [testimonials] = useState([
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      role: 'Homeowner',
-      content: 'Found an amazing plumber through ShareServe. Professional, affordable, and friendly!',
-      rating: 5,
-      image: '/avatar1.jpg'
-    },
-    {
-      id: 2,
-      name: 'Mike Chen',
-      role: 'Web Developer',
-      content: 'I love sharing my coding skills with my community. Made great connections!',
-      rating: 5,
-      image: '/avatar2.jpg'
-    },
-    {
-      id: 3,
-      name: 'Emma Wilson',
-      role: 'Yoga Instructor',
-      content: 'ShareServe helped me build a steady client base in my neighborhood.',
-      rating: 5,
-      image: '/avatar3.jpg'
-    }
-  ]);
+const HOST_STEPS = [
+  { icon: ListPlus, title: 'List your space', text: 'Add the address, slot size, hours and your rate: hourly, daily, monthly or free.' },
+  { icon: CheckCircle2, title: 'Approve requests', text: 'You see each driver’s plate number and schedule, and you decide who parks.' },
+  { icon: Wallet, title: 'Earn from idle space', text: 'Your garage or driveway pays for itself while you’re at work or away.' }
+];
+
+const Home = () => {
+  const navigate = useNavigate();
+  const [where, setWhere] = useState('');
+  const [typeId, setTypeId] = useState('');
+  const [latest, setLatest] = useState(null);
+  const [audience, setAudience] = useState('drivers');
+  const [rate, setRate] = useState(40);
+  const [hours, setHours] = useState(8);
+
+  useEffect(() => {
+    listSpaces({ page: 1 })
+      .then(({ spaces }) => setLatest(spaces.slice(0, 8)))
+      .catch(() => setLatest([]));
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
-    }
+    const params = new URLSearchParams();
+    if (where.trim()) params.set('location', where.trim());
+    if (typeId) params.set('category', typeId);
+    navigate(`/search?${params.toString()}`);
   };
+
+  const steps = audience === 'drivers' ? DRIVER_STEPS : HOST_STEPS;
+  const monthly = Math.round(rate * hours * 22);
 
   return (
     <div className="home">
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="hero">
-        <div className="hero-content">
-          <h1>Connect with Local Skills & Services</h1>
-          <p className="hero-subtitle">
-            Discover trusted neighbors offering their expertise. From home repairs to 
-            tutoring, find the perfect help right in your community.
-          </p>
+        <div className="container hero-grid">
+          <div className="hero-copy">
+            <span className="eyebrow"><span className="pulse" aria-hidden="true" /> Parking, shared by neighbors</span>
+            <h1>Stop circling the block. <span>Park in a neighbor’s spot.</span></h1>
+            <p className="hero-lead">
+              Book unused garages, driveways and condo slots near where you’re going, or list
+              your own empty space and earn from it.
+            </p>
 
-          <form className="search-form" onSubmit={handleSearch}>
-            <div className="search-input-wrapper">
-              <Search className="search-icon" />
-              <input
-                type="text"
-                placeholder="What service are you looking for?"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
-            </div>
-            <div className="location-input-wrapper">
-              <MapPin className="location-icon" />
-              <input
-                type="text"
-                placeholder="Your location"
-                className="location-input"
-              />
-            </div>
-            <button type="submit" className="search-btn">
-              <Search size={20} />
-              <span>Search</span>
-            </button>
-          </form>
-
-          <div className="hero-stats">
-            <div className="stat">
-              <span className="stat-number">10,000+</span>
-              <span className="stat-label">Active Users</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">5,000+</span>
-              <span className="stat-label">Services Listed</span>
-            </div>
-            <div className="stat">
-              <span className="stat-number">4.8</span>
-              <span className="stat-label">Average Rating</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="hero-illustration">
-          <div className="illustration-container">
-            <div className="floating-card card-1">
-              <Wrench size={24} />
-              <span>Home Repair</span>
-            </div>
-            <div className="floating-card card-2">
-              <Code size={24} />
-              <span>Web Dev</span>
-            </div>
-            <div className="floating-card card-3">
-              <BookOpen size={24} />
-              <span>Tutoring</span>
-            </div>
-            <div className="floating-card card-4">
-              <Camera size={24} />
-              <span>Photography</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="how-it-works">
-        <h2>How It Works</h2>
-        <div className="steps-grid">
-          <div className="step">
-            <div className="step-icon">
-              <Search size={32} />
-            </div>
-            <h3>1. Search</h3>
-            <p>Browse through local services or search for specific skills you need.</p>
-          </div>
-          <div className="step">
-            <div className="step-icon">
-              <Users size={32} />
-            </div>
-            <h3>2. Connect</h3>
-            <p>Message providers, discuss details, and agree on terms.</p>
-          </div>
-          <div className="step">
-            <div className="step-icon">
-              <Star size={32} />
-            </div>
-            <h3>3. Get It Done</h3>
-            <p>Receive quality service and leave a review to help others.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="categories-section">
-        <div className="section-header">
-          <h2>Popular Categories</h2>
-          <Link to="/search" className="view-all">
-            View All <ArrowRight size={16} />
-          </Link>
-        </div>
-        <div className="categories-grid">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              to={`/search?category=${category.id}`}
-              className={`category-card ${selectedCategory === category.id ? 'selected' : ''}`}
-              onClick={() => setSelectedCategory(category.id)}
-            >
-              <div className="category-icon">
-                <category.icon size={28} />
-              </div>
-              <h3>{category.name}</h3>
-              <span className="category-count">{category.count} services</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Featured Services */}
-      <section className="featured-section">
-        <div className="section-header">
-          <h2>Featured Services</h2>
-          <Link to="/search" className="view-all">
-            View All <ArrowRight size={16} />
-          </Link>
-        </div>
-        <div className="services-grid">
-          {/* Sample service cards */}
-          <div className="service-card">
-            <div className="service-image">
-              <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400" alt="Web Development" />
-              <span className="service-price">₱2,500</span>
-            </div>
-            <div className="service-content">
-              <h3>Custom Website Development</h3>
-              <p className="service-provider">
-                <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Provider" />
-                <span>John Doe</span>
-                <span className="rating">
-                  <Star size={14} fill="#fbbf24" /> 4.9 (45)
-                </span>
-              </p>
-              <div className="service-tags">
-                <span className="tag">Web Development</span>
-                <span className="tag">Tech</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="service-card">
-            <div className="service-image">
-              <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400" alt="Home Cleaning" />
-              <span className="service-price">₱800</span>
-            </div>
-            <div className="service-content">
-              <h3>Professional House Cleaning</h3>
-              <p className="service-provider">
-                <img src="https://randomuser.me/api/portraits/women/2.jpg" alt="Provider" />
-                <span>Maria Santos</span>
-                <span className="rating">
-                  <Star size={14} fill="#fbbf24" /> 4.8 (89)
-                </span>
-              </p>
-              <div className="service-tags">
-                <span className="tag">Cleaning</span>
-                <span className="tag">Home</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="service-card">
-            <div className="service-image">
-              <img src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=400" alt="Guitar Lessons" />
-              <span className="service-price">₱500/hr</span>
-            </div>
-            <div className="service-content">
-              <h3>Beginner Guitar Lessons</h3>
-              <p className="service-provider">
-                <img src="https://randomuser.me/api/portraits/men/3.jpg" alt="Provider" />
-                <span>Carlos Reyes</span>
-                <span className="rating">
-                  <Star size={14} fill="#fbbf24" /> 5.0 (32)
-                </span>
-              </p>
-              <div className="service-tags">
-                <span className="tag">Music</span>
-                <span className="tag">Lessons</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="service-card">
-            <div className="service-image">
-              <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400" alt="Photography" />
-              <span className="service-price">₱3,500</span>
-            </div>
-            <div className="service-content">
-              <h3>Portrait Photography Session</h3>
-              <p className="service-provider">
-                <img src="https://randomuser.me/api/portraits/women/4.jpg" alt="Provider" />
-                <span>Ana Garcia</span>
-                <span className="rating">
-                  <Star size={14} fill="#fbbf24" /> 4.9 (67)
-                </span>
-              </p>
-              <div className="service-tags">
-                <span className="tag">Photography</span>
-                <span className="tag">Portrait</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Choose Us */}
-      <section className="why-us">
-        <h2>Why Choose ShareServe?</h2>
-        <div className="features-grid">
-          <div className="feature">
-            <div className="feature-icon">
-              <Shield size={32} />
-            </div>
-            <h3>Verified Providers</h3>
-            <p>All service providers go through a verification process for your safety.</p>
-          </div>
-          <div className="feature">
-            <div className="feature-icon">
-              <Heart size={32} />
-            </div>
-            <h3>Community Focused</h3>
-            <p>Support your local neighbors and build meaningful connections.</p>
-          </div>
-          <div className="feature">
-            <div className="feature-icon">
-              <Zap size={32} />
-            </div>
-            <h3>Quick & Easy</h3>
-            <p>Find and book services in minutes with our simple platform.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="testimonials">
-        <h2>What Our Users Say</h2>
-        <div className="testimonials-grid">
-          {testimonials.map((testimonial) => (
-            <div key={testimonial.id} className="testimonial-card">
-              <div className="testimonial-content">
-                <div className="testimonial-stars">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} size={16} fill="#fbbf24" color="#fbbf24" />
+            <form className="hero-search" onSubmit={handleSearch} role="search">
+              <label className="hero-field">
+                <span>Where</span>
+                <div className="input-icon">
+                  <MapPin size={18} aria-hidden="true" />
+                  <input
+                    className="input"
+                    placeholder="City, area or landmark"
+                    value={where}
+                    onChange={(e) => setWhere(e.target.value)}
+                  />
+                </div>
+              </label>
+              <label className="hero-field">
+                <span>Type</span>
+                <select className="input" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+                  <option value="">Any parking</option>
+                  {PARKING_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
+                </select>
+              </label>
+              <button type="submit" className="btn btn-primary btn-lg">
+                <Search size={18} /> Find parking
+              </button>
+            </form>
+
+            <ul className="hero-points">
+              <li><ShieldCheck size={18} /> Host-approved bookings</li>
+              <li><Clock size={18} /> Hourly, daily or monthly</li>
+            </ul>
+          </div>
+
+          <div className="hero-visual" aria-hidden="true">
+            <div className="lot">
+              {['taken', 'free', 'taken', 'taken', 'taken', 'free', 'taken', 'free'].map((state, i) => (
+                <div key={i} className={`bay ${state}`}>
+                  {state === 'taken' ? <Car size={30} strokeWidth={1.5} /> : <span>P</span>}
                 </div>
-                <p>"{testimonial.content}"</p>
-              </div>
-              <div className="testimonial-author">
-                <img src={testimonial.image} alt={testimonial.name} />
-                <div>
-                  <h4>{testimonial.name}</h4>
-                  <span>{testimonial.role}</span>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+            <div className="hero-ticket">
+              <div className="ticket-top">
+                <span className="badge badge-success">Approved</span>
+                <span className="ticket-price">₱150</span>
+              </div>
+              <strong>Covered garage · Makati</strong>
+              <span>Tomorrow, 8:00 AM · 3 hours</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="cta-section">
-        <div className="cta-content">
-          <h2>Ready to Get Started?</h2>
-          <p>Join thousands of neighbors helping neighbors. Sign up today!</p>
-          <div className="cta-buttons">
-            <Link to="/register" className="cta-btn primary">
-              Create Account <ArrowRight size={20} />
-            </Link>
-            <Link to="/search" className="cta-btn secondary">
-              Browse Services
-            </Link>
+      {/* How it works */}
+      <section className="section">
+        <div className="container">
+          <div className="section-head center">
+            <span className="eyebrow">How it works</span>
+            <h2>Simple for drivers and hosts</h2>
+            <div className="segmented" role="tablist" aria-label="Who is this for">
+              <button role="tab" aria-selected={audience === 'drivers'} className={audience === 'drivers' ? 'active' : ''} onClick={() => setAudience('drivers')}>
+                I need parking
+              </button>
+              <button role="tab" aria-selected={audience === 'hosts'} className={audience === 'hosts' ? 'active' : ''} onClick={() => setAudience('hosts')}>
+                I have a space
+              </button>
+            </div>
+          </div>
+          <ol className="steps">
+            {steps.map((step, i) => (
+              <li key={step.title} className="step">
+                <div className="step-num">{i + 1}</div>
+                <step.icon size={26} className="step-icon" aria-hidden="true" />
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Parking types */}
+      <section className="section section-tint">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Browse</span>
+              <h2>Every kind of parking</h2>
+            </div>
+            <Link to="/search" className="btn btn-secondary">All spaces <ArrowRight size={16} /></Link>
+          </div>
+          <div className="type-grid">
+            {PARKING_TYPES.map((type) => (
+              <Link key={type.id} to={`/search?category=${type.id}`} className="type-tile">
+                <span className="type-icon"><type.icon size={22} /></span>
+                <span>{type.name}</span>
+                <ArrowRight size={16} className="type-arrow" aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Latest spaces */}
+      <section className="section">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Just listed</span>
+              <h2>Latest parking spaces</h2>
+            </div>
+            {latest?.length > 0 && (
+              <Link to="/search" className="btn btn-secondary">See all <ArrowRight size={16} /></Link>
+            )}
+          </div>
+
+          {latest === null ? (
+            <div className="space-grid">
+              {Array.from({ length: 4 }).map((_, i) => <SpaceCardSkeleton key={i} />)}
+            </div>
+          ) : latest.length === 0 ? (
+            <div className="card empty">
+              <div className="empty-icon"><ParkingSquare size={28} /></div>
+              <h3>No spaces listed yet</h3>
+              <p>Be the first host in your area. It takes about two minutes.</p>
+              <Link to="/list-space" className="btn btn-primary">List your space</Link>
+            </div>
+          ) : (
+            <div className="space-grid">
+              {latest.map((space) => <SpaceCard key={space.id} space={space} />)}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Host earnings */}
+      <section className="section">
+        <div className="container">
+          <div className="host-band">
+            <div className="host-copy">
+              <span className="eyebrow">For hosts</span>
+              <h2>Your empty slot could pay for itself</h2>
+              <p>Most garages and driveways sit empty during office hours. Set your own rate and schedule, and approve every booking yourself.</p>
+              <Link to="/list-space" className="btn btn-white btn-lg">
+                List your space <ArrowRight size={18} />
+              </Link>
+            </div>
+            <div className="calc">
+              <div className="calc-row">
+                <label htmlFor="calc-rate">Hourly rate</label>
+                <output>₱{rate}</output>
+              </div>
+              <input id="calc-rate" type="range" min="10" max="150" step="5" value={rate}
+                onChange={(e) => setRate(Number(e.target.value))} />
+              <div className="calc-row">
+                <label htmlFor="calc-hours">Hours booked per weekday</label>
+                <output>{hours} h</output>
+              </div>
+              <input id="calc-hours" type="range" min="1" max="12" value={hours}
+                onChange={(e) => setHours(Number(e.target.value))} />
+              <div className="calc-total">
+                <span>Estimated per month</span>
+                <strong>₱{monthly.toLocaleString()}</strong>
+                <small>Based on 22 weekdays. Actual earnings depend on demand.</small>
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -1,0 +1,107 @@
+/* About + Contact */
+.center { text-align: center; }
+
+.info-hero {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 72px 0 64px;
+}
+
+.info-hero h1 { margin: 12px 0 16px; }
+.info-hero p { font-size: 1.125rem; color: var(--muted); }
+
+.info-section { padding-top: 56px; padding-bottom: 24px; }
+.info-section:last-child { padding-bottom: 88px; }
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.role-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: var(--primary);
+}
+
+.role-head h2 { font-size: 1.375rem; }
+
+.role-steps {
+  list-style: none;
+  display: grid;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.role-steps li {
+  display: flex;
+  gap: 14px;
+}
+
+.role-steps li > svg {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--primary-50);
+  color: var(--primary);
+}
+
+.role-steps p { color: var(--muted); font-size: 0.9375rem; }
+
+.faq-title { margin: 10px 0 24px; }
+
+.faq {
+  display: grid;
+  gap: 10px;
+}
+
+.faq details { padding: 0; }
+
+.faq summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 18px 20px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.faq summary::-webkit-details-marker { display: none; }
+
+.faq summary::after {
+  content: '+';
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--primary);
+}
+
+.faq details[open] summary::after { content: '–'; }
+.faq details p { padding: 0 20px 18px; color: var(--muted); }
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.contact-side {
+  display: grid;
+  gap: 16px;
+}
+
+.side-icon { color: var(--primary); margin-bottom: 10px; }
+.contact-side h3 { margin-bottom: 4px; }
+
+@media (max-width: 860px) {
+  .two-col,
+  .contact-grid { grid-template-columns: 1fr; }
+  .info-hero { padding: 48px 0 40px; }
+}

@@ -1,547 +1,188 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
-  User, 
-  Mail, 
-  Calendar,
-  AlertCircle,
-  CheckCircle,
-  X,
-  UserCheck,
-  LogOut
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Users, ParkingSquare, CalendarCheck, Search, BadgeCheck, Shield, AlertCircle, CheckCircle2, X, Trash2, Eye } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { adminListSpaces, adminListUsers, adminUpdateUser, platformStats, removeSpace } from '../lib/api';
+import { formatPrice } from '../constants/parking';
 import './Admin.css';
 
+const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+
+// Admin panel: verify hosts, manage admins, moderate listings.
+// Every action is checked again in the database (admin-only functions).
 const Admin = () => {
+  const { user } = useAuth();
+  const [tab, setTab] = useState('users');
   const [users, setUsers] = useState([]);
+  const [spaces, setSpaces] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [deletingUser, setDeletingUser] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: '',
-    location: '',
-    city: '',
-    state: '',
-    country: '',
-    phone: '',
-    bio: '',
-    is_active: true,
-    is_admin: false
-  });
-  const [formErrors, setFormErrors] = useState({});
-  const navigate = useNavigate();
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
-
-  const limit = 10;
-
-  useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      if (!user.is_admin) {
-        setError('Access denied. Admin privileges required.');
-        return;
-      }
-      setCurrentUser(user);
-    } else {
-      setError('Please log in to access this page.');
-      return;
-    }
-    fetchUsers();
-  }, [currentPage, searchTerm]);
-
-  const fetchUsers = async () => {
-    setLoading(true);
+  const load = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: limit,
-        search: searchTerm
-      });
-      
-      const response = await axios.get(`/api/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        setUsers(response.data.data);
-        setTotalPages(response.data.pagination?.pages || 1);
-      }
+      const [u, s, st] = await Promise.all([adminListUsers(), adminListSpaces(), platformStats()]);
+      setUsers(u);
+      setSpaces(s);
+      setStats(st);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load users');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const openCreateModal = () => {
-    setEditingUser(null);
-    setFormData({
-      email: '',
-      password: '',
-      first_name: '',
-      last_name: '',
-      location: '',
-      city: '',
-      state: '',
-      country: '',
-      phone: '',
-      bio: '',
-      is_active: true,
-      is_admin: false
-    });
-    setFormErrors({});
-    setShowModal(true);
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const openEditModal = (user) => {
-    setEditingUser(user);
-    setFormData({
-      email: user.email,
-      password: '',
-      first_name: user.first_name,
-      last_name: user.last_name,
-      location: user.location || '',
-      city: user.city || '',
-      state: user.state || '',
-      country: user.country || '',
-      phone: user.phone || '',
-      bio: user.bio || '',
-      is_active: user.is_active,
-      is_admin: user.is_admin || false
-    });
-    setFormErrors({});
-    setShowModal(true);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.email) errors.email = 'Email is required';
-    if (!formData.first_name) errors.first_name = 'First name is required';
-    if (!formData.last_name) errors.last_name = 'Last name is required';
-    if (!editingUser && !formData.password) errors.password = 'Password is required for new users';
-    if (formData.password && formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
+  const toggle = async (target, field) => {
+    setBusy(`${target.id}-${field}`);
+    setError('');
     try {
-      const token = localStorage.getItem('token');
-      const payload = { ...formData };
-      if (!payload.password) delete payload.password;
-
-      if (editingUser) {
-        await axios.put(`/api/users/${editingUser.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } else {
-        await axios.post('/api/users', payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
-      setShowModal(false);
-      fetchUsers();
+      const next = !target[field];
+      await adminUpdateUser(target.id, field === 'is_verified' ? { isVerified: next } : { isAdmin: next });
+      setUsers((list) => list.map((u) => (u.id === target.id ? { ...u, [field]: next } : u)));
+      setNotice(`${target.first_name || target.email} updated`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Operation failed');
-    }
-  };
-
-  const openDeleteModal = (user) => {
-    setDeletingUser(user);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingUser) return;
-    setIsDeleting(true);
-    
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/users/${deletingUser.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setShowDeleteModal(false);
-      setDeletingUser(null);
-      fetchUsers();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete user');
-      setShowDeleteModal(false);
-      setDeletingUser(null);
+      setError(err.message);
     } finally {
-      setIsDeleting(false);
+      setBusy(null);
     }
   };
 
-  const getUserStatus = (user) => {
-    if (!user.is_active) return { label: 'Inactive', class: 'inactive' };
-    return { label: 'Active', class: 'active' };
+  const takeDown = async (space) => {
+    if (!window.confirm(`Remove “${space.title}” from ShareSpace?`)) return;
+    setBusy(`space-${space.id}`);
+    try {
+      await removeSpace(space.id);
+      setSpaces((list) => list.map((s) => (s.id === space.id ? { ...s, status: 'Removed', is_available: false } : s)));
+      setNotice('Listing removed');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
   };
 
-  if (loading && users.length === 0) {
-    return <div className="admin-loading">Loading...</div>;
-  }
+  const q = query.trim().toLowerCase();
+  const filteredUsers = useMemo(() => users.filter((u) =>
+    !q || `${u.first_name} ${u.last_name} ${u.email} ${u.city || ''}`.toLowerCase().includes(q)), [users, q]);
+  const filteredSpaces = useMemo(() => spaces.filter((s) =>
+    !q || `${s.title} ${s.city} ${s.location} ${s.provider_name}`.toLowerCase().includes(q)), [spaces, q]);
 
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <div className="admin-title-section">
-          <Shield size={32} />
-          <div>
-            <h1>Users Management</h1>
-            <p>Manage all users and administrators</p>
-            {currentUser && (
-              <p className="admin-user-greeting">Admin: {currentUser.first_name} {currentUser.last_name}</p>
-            )}
-          </div>
-        </div>
-        <div className="admin-header-actions">
-          <button className="add-admin-btn" onClick={openCreateModal}>
-            <Plus size={20} />
-            Add User
-          </button>
-          <button className="logout-btn" onClick={handleLogout}>
-            <LogOut size={20} />
-            Logout
-          </button>
+    <div className="container page admin">
+      <div className="page-head">
+        <div>
+          <span className="eyebrow"><Shield size={14} /> Admin</span>
+          <h1>Admin panel</h1>
         </div>
       </div>
 
-      {error && (
-        <div className="admin-error">
-          <AlertCircle size={20} />
-          {error}
-          <button onClick={() => setError(null)}><X size={20} /></button>
+      {stats && (
+        <div className="stat-grid admin-stats">
+          <div className="stat card"><Users size={20} /><strong>{stats.users}</strong><span>Users</span></div>
+          <div className="stat card"><ParkingSquare size={20} /><strong>{stats.spaces}</strong><span>Active spaces</span></div>
+          <div className="stat card"><CalendarCheck size={20} /><strong>{stats.bookings}</strong><span>Bookings</span></div>
         </div>
       )}
 
-      <div className="admin-controls">
-        <div className="search-box">
-          <Search size={20} />
-          <input
-            type="text"
-            placeholder="Search users by name or email..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
+      <div className="admin-toolbar">
+        <nav className="tabs" aria-label="Admin sections">
+          <button className={`tab ${tab === 'users' ? 'active' : ''}`} onClick={() => setTab('users')}><Users size={17} /> Users</button>
+          <button className={`tab ${tab === 'spaces' ? 'active' : ''}`} onClick={() => setTab('spaces')}><ParkingSquare size={17} /> Listings</button>
+        </nav>
+        <div className="input-icon admin-search">
+          <Search size={18} aria-hidden="true" />
+          <input className="input" placeholder={tab === 'users' ? 'Search name, email, city' : 'Search title, city, host'}
+            aria-label="Search" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
       </div>
 
-      <div className="admin-table-container">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Email</th>
-              <th>Position</th>
-              <th>Status</th>
-              <th>Verified</th>
-              <th>Joined</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => {
-              const status = getUserStatus(user);
-              return (
-                <tr key={user.id}>
+      {error && <div className="alert alert-error" role="alert"><AlertCircle size={18} /><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss"><X size={16} /></button></div>}
+      {notice && <div className="alert alert-success" role="status"><CheckCircle2 size={18} /><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss"><X size={16} /></button></div>}
+
+      {loading ? (
+        <div className="loading"><div className="spinner" /><span>Loading…</span></div>
+      ) : tab === 'users' ? (
+        <div className="card table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>User</th><th>City</th><th>Spaces</th><th>Joined</th><th>Last login</th><th>Verified host</th><th>Admin</th></tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr key={u.id}>
                   <td>
-                    <div className="admin-user">
-                      <div className="admin-avatar">
-                        <User size={20} />
-                      </div>
+                    <div className="user-cell">
+                      <span className="avatar" aria-hidden="true">{(u.first_name || u.email).charAt(0).toUpperCase()}</span>
                       <div>
-                        <div className="admin-name">{`${user.first_name} ${user.last_name}`}</div>
-                        <div className="admin-id">ID: {user.id}</div>
+                        <strong>{[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}{u.id === user.id && <span className="badge" style={{ marginLeft: 6 }}>You</span>}</strong>
+                        <span>{u.email}</span>
                       </div>
                     </div>
                   </td>
+                  <td>{u.city || '—'}</td>
+                  <td>{u.spaces_count}</td>
+                  <td>{formatDate(u.created_at)}</td>
+                  <td>{formatDate(u.last_sign_in_at)}</td>
                   <td>
-                    <div className="admin-email">
-                      <Mail size={14} />
-                      {user.email}
-                    </div>
+                    <button className={`switch ${u.is_verified ? 'on' : ''}`} role="switch" aria-checked={u.is_verified}
+                      aria-label={`Verified host: ${u.email}`} disabled={busy === `${u.id}-is_verified`} onClick={() => toggle(u, 'is_verified')}>
+                      <span />
+                    </button>
                   </td>
                   <td>
-                    <span className={`position-badge ${user.is_admin ? 'admin' : 'user'}`}>
-                      <UserCheck size={14} />
-                      {user.is_admin ? 'Admin' : 'User'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${status.class}`}>
-                      <CheckCircle size={12} />
-                      {status.label}
-                    </span>
-                  </td>
-                  <td>
-                    {user.is_verified ? (
-                      <span className="verified-badge"><CheckCircle size={14} /> Verified</span>
-                    ) : (
-                      <span className="unverified-badge">Unverified</span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="admin-date">
-                      <Calendar size={14} />
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="admin-actions">
-                      <button 
-                        className="action-btn edit"
-                        onClick={() => openEditModal(user)}
-                        title="Edit user"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        className="action-btn delete"
-                        onClick={() => openDeleteModal(user)}
-                        title="Delete user permanently"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    <button className={`switch ${u.is_admin ? 'on' : ''}`} role="switch" aria-checked={u.is_admin}
+                      aria-label={`Admin: ${u.email}`} disabled={busy === `${u.id}-is_admin` || u.id === user.id} onClick={() => toggle(u, 'is_admin')}>
+                      <span />
+                    </button>
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {users.length === 0 && (
-          <div className="empty-state">
-            <Shield size={48} />
-            <h3>No users found</h3>
-            <p>Add your first user to get started</p>
-          </div>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="admin-pagination">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(p => p - 1)}
-          >
-            Previous
-          </button>
-          <span>Page {currentPage} of {totalPages}</span>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(p => p + 1)}
-          >
-            Next
-          </button>
+              ))}
+              {filteredUsers.length === 0 && <tr><td colSpan={7} className="muted center">No users found</td></tr>}
+            </tbody>
+          </table>
         </div>
-      )}
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingUser ? 'Edit User' : 'Add New User'}</h2>
-              <button className="close-btn" onClick={() => setShowModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>First Name *</label>
-                  <input
-                    type="text"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    className={formErrors.first_name ? 'error' : ''}
-                  />
-                  {formErrors.first_name && <span className="error-text">{formErrors.first_name}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Last Name *</label>
-                  <input
-                    type="text"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    className={formErrors.last_name ? 'error' : ''}
-                  />
-                  {formErrors.last_name && <span className="error-text">{formErrors.last_name}</span>}
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Email *</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={formErrors.email ? 'error' : ''}
-                />
-                {formErrors.email && <span className="error-text">{formErrors.email}</span>}
-              </div>
-              <div className="form-group">
-                <label>{editingUser ? 'New Password (optional)' : 'Password *'}</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder={editingUser ? 'Leave blank to keep current' : ''}
-                  className={formErrors.password ? 'error' : ''}
-                />
-                {formErrors.password && <span className="error-text">{formErrors.password}</span>}
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} />
-                </div>
-                <div className="form-group">
-                  <label>Location</label>
-                  <input type="text" name="location" value={formData.location} onChange={handleInputChange} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>City</label>
-                  <input type="text" name="city" value={formData.city} onChange={handleInputChange} />
-                </div>
-                <div className="form-group">
-                  <label>State</label>
-                  <input type="text" name="state" value={formData.state} onChange={handleInputChange} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Country</label>
-                <input type="text" name="country" value={formData.country} onChange={handleInputChange} />
-              </div>
-              <div className="form-group">
-                <label>Bio</label>
-                <textarea
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleInputChange}
-                  rows="3"
-                />
-              </div>
-              <div className="form-group checkbox-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    name="is_admin"
-                    checked={formData.is_admin}
-                    onChange={handleInputChange}
-                  />
-                  Admin User
-                </label>
-              </div>
-              {editingUser && (
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={formData.is_active}
-                      onChange={handleInputChange}
-                    />
-                    Active
-                  </label>
-                </div>
-              )}
-              <div className="modal-actions">
-                <button type="button" className="cancel-btn" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="submit-btn">
-                  {editingUser ? 'Update User' : 'Create User'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Confirm Delete User</h2>
-              <button className="close-btn" onClick={() => setShowDeleteModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="delete-warning-icon">
-                <AlertCircle size={48} />
-              </div>
-              <p className="delete-warning-title">Are you sure you want to permanently delete this user?</p>
-              <div className="delete-user-info">
-                <strong>{deletingUser?.first_name} {deletingUser?.last_name}</strong>
-                <span>{deletingUser?.email}</span>
-              </div>
-              <p className="delete-warning-text">
-                This action cannot be undone. The user will be permanently removed from the system and will no longer be able to log in.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <button 
-                className="cancel-btn" 
-                onClick={() => setShowDeleteModal(false)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button 
-                className="submit-btn delete" 
-                onClick={confirmDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete User'}
-              </button>
-            </div>
-          </div>
+      ) : (
+        <div className="card table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Listing</th><th>Host</th><th>Rate</th><th>Views</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr>
+            </thead>
+            <tbody>
+              {filteredSpaces.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <div className="user-cell">
+                      <div>
+                        <strong><Link to={`/spaces/${s.id}`}>{s.title}</Link></strong>
+                        <span>{s.category_name || 'Parking'} · {s.city}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{s.provider_name}{s.provider_verified && <BadgeCheck size={14} className="verified-icon" aria-label="Verified" />}</td>
+                  <td>{formatPrice(s.price, s.price_type)}</td>
+                  <td><span className="inline-icon"><Eye size={14} /> {s.views_count}</span></td>
+                  <td>
+                    {s.status === 'Removed'
+                      ? <span className="badge badge-danger">Removed</span>
+                      : s.is_available ? <span className="badge badge-success">Live</span> : <span className="badge">Paused</span>}
+                  </td>
+                  <td>
+                    {s.status !== 'Removed' && (
+                      <button className="icon-btn danger" disabled={busy === `space-${s.id}`} onClick={() => takeDown(s)} aria-label={`Remove ${s.title}`}>
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredSpaces.length === 0 && <tr><td colSpan={6} className="muted center">No listings found</td></tr>}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

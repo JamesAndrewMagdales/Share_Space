@@ -1,0 +1,184 @@
+.auth-page {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  min-height: calc(100vh - var(--header-h));
+}
+
+.auth-aside {
+  background: var(--navy);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-aside::after {
+  content: '';
+  position: absolute;
+  inset: auto -120px -160px auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.45), transparent 70%);
+}
+
+.auth-aside-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+}
+
+.auth-aside .eyebrow { color: #93c5fd; }
+
+.auth-aside h2 {
+  color: #fff;
+  margin: 14px 0 24px;
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+}
+
+.auth-aside ul {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.auth-aside li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+}
+
+.auth-aside li svg { color: #34d399; flex-shrink: 0; }
+
+/* Parking-lot motif */
+.lot-lines {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  margin-top: 48px;
+  border-top: 2px solid rgba(255, 255, 255, 0.18);
+}
+
+.lot-lines span {
+  height: 72px;
+  border-right: 2px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.lot-lines span:first-child { border-left: 2px solid rgba(255, 255, 255, 0.18); }
+
+.lot-lines span.free {
+  background: rgba(5, 150, 105, 0.25);
+  color: #6ee7b7;
+}
+
+.auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+}
+
+.auth-card h1 {
+  font-size: 1.875rem;
+  margin-bottom: 8px;
+}
+
+.auth-sub {
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  padding: 4px 0;
+}
+
+.auth-back:hover { color: var(--ink); }
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.password-field input { padding-right: 48px !important; }
+
+.reveal-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.reveal-btn:hover { color: var(--ink); background: var(--surface-2); }
+
+.field-error {
+  font-size: 0.8125rem;
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.field input[aria-invalid='true'] { border-color: var(--danger) !important; }
+
+.auth-terms {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 14px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.auth-switch a { font-weight: 600; }
+
+.auth-done {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auth-done .auth-switch { border-top: none; padding-top: 0; margin-top: 16px; }
+
+@media (max-width: 900px) {
+  .auth-page { grid-template-columns: 1fr; }
+  .auth-aside { display: none; }
+  .auth-main { padding: 32px 16px 56px; align-items: flex-start; }
+}

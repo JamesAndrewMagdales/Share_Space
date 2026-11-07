@@ -5,7 +5,26 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all services with filtering and pagination
+// A "service" row is a parking space listing posted by a host.
+const PRICE_TYPES = ['Hourly', 'Daily', 'Monthly', 'Free'];
+const VEHICLE_TYPES = ['Car', 'Motorcycle', 'SUV/Van', 'Truck', 'Any'];
+const TIME_PATTERN = /^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
+
+// Parking columns returned with every listing
+const PARKING_COLUMNS = `
+        s.vehicle_type,
+        s.slot_count,
+        s.is_covered,
+        s.has_cctv,
+        s.has_ev_charging,
+        s.is_24_7,
+        s.available_from,
+        s.available_to`;
+
+const toBool = (value) => value === true || value === 'true' || value === 1 || value === '1';
+const toTimeOrNull = (value) => (value ? value : null);
+
+// Get all parking spaces with filtering and pagination
 router.get('/', async (req, res) => {
   try {
     const {
@@ -15,20 +34,24 @@ router.get('/', async (req, res) => {
       minPrice,
       maxPrice,
       minRating,
-      isRemote,
+      vehicleType,
+      priceType,
+      isCovered,
+      hasCctv,
+      hasEvCharging,
       page = 1,
       limit = 12,
       sortBy = 'created_at',
-      sortOrder = 'DESC'
+      sortOrder = ''
     } = req.query;
 
     let whereClause = 'WHERE s.status = ? AND s.is_available = 1';
     let values = ['Active'];
 
-    // Search by title or description
+    // Search by title, description, address or city
     if (search) {
-      whereClause += ' AND (s.title LIKE ? OR s.description LIKE ?)';
-      values.push(`%${search}%`, `%${search}%`);
+      whereClause += ' AND (s.title LIKE ? OR s.description LIKE ? OR s.location LIKE ? OR s.city LIKE ?)';
+      values.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     // Filter by category
@@ -37,10 +60,10 @@ router.get('/', async (req, res) => {
       values.push(category);
     }
 
-    // Filter by city
+    // Filter by city or area (partial match, so "Makati" finds "Makati City")
     if (city) {
-      whereClause += ' AND s.city = ?';
-      values.push(city);
+      whereClause += ' AND (s.city LIKE ? OR s.location LIKE ?)';
+      values.push(`%${city}%`, `%${city}%`);
     }
 
     // Filter by price range
@@ -59,24 +82,40 @@ router.get('/', async (req, res) => {
       values.push(parseFloat(minRating));
     }
 
-    // Filter by remote availability
-    if (isRemote === 'true') {
-      whereClause += ' AND s.is_remote = 1';
+    // Filter by vehicle size ("Any" spaces fit every vehicle)
+    if (vehicleType && VEHICLE_TYPES.includes(vehicleType)) {
+      whereClause += " AND (s.vehicle_type = ? OR s.vehicle_type = 'Any')";
+      values.push(vehicleType);
     }
 
+    // Filter by rate type
+    if (priceType && PRICE_TYPES.includes(priceType)) {
+      whereClause += ' AND s.price_type = ?';
+      values.push(priceType);
+    }
+
+    // Amenity filters
+    if (isCovered === 'true') whereClause += ' AND s.is_covered = 1';
+    if (hasCctv === 'true') whereClause += ' AND s.has_cctv = 1';
+    if (hasEvCharging === 'true') whereClause += ' AND s.has_ev_charging = 1';
+
     // Valid sort fields
-    const validSortFields = ['created_at', 'price', 'title', 'u.rating_avg'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
-    const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const validSortFields = ['created_at', 'price', 'title', 'u.rating_avg', 'rating'];
+    const sortField = validSortFields.includes(sortBy)
+      ? (sortBy === 'rating' ? 'u.rating_avg' : sortBy)
+      : 'created_at';
+    // Price and name read naturally low-to-high / A-Z unless sortOrder is given
+    const defaultOrder = ['price', 'title'].includes(sortField) ? 'ASC' : 'DESC';
+    const order = (sortOrder || defaultOrder).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // Calculate pagination
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     // Get total count
     const countQuery = `
-      SELECT COUNT(*) as total 
-      FROM services s 
-      JOIN users u ON s.user_id = u.id 
+      SELECT COUNT(*) as total
+      FROM services s
+      JOIN users u ON s.user_id = u.id
       ${whereClause}
     `;
     const countResult = await query(countQuery, values);
@@ -84,7 +123,7 @@ router.get('/', async (req, res) => {
 
     // Get services with pagination
     const servicesQuery = `
-      SELECT 
+      SELECT
         s.id,
         s.title,
         s.description,
@@ -96,7 +135,7 @@ router.get('/', async (req, res) => {
         s.is_available,
         s.duration_minutes,
         s.views_count,
-        s.created_at,
+        s.created_at,${PARKING_COLUMNS},
         u.id as provider_id,
         CONCAT(u.first_name, ' ', u.last_name) as provider_name,
         u.profile_image,
@@ -154,7 +193,7 @@ router.get('/:id', async (req, res) => {
     await query('UPDATE services SET views_count = views_count + 1 WHERE id = ?', [id]);
 
     const services = await query(
-      `SELECT 
+      `SELECT
         s.id,
         s.title,
         s.description,
@@ -166,7 +205,7 @@ router.get('/:id', async (req, res) => {
         s.is_available,
         s.duration_minutes,
         s.views_count,
-        s.created_at,
+        s.created_at,${PARKING_COLUMNS},
         u.id as provider_id,
         CONCAT(u.first_name, ' ', u.last_name) as provider_name,
         u.profile_image,
@@ -187,7 +226,7 @@ router.get('/:id', async (req, res) => {
     if (services.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: 'Parking space not found'
       });
     }
 
@@ -200,19 +239,9 @@ router.get('/:id', async (req, res) => {
     );
     service.images = images;
 
-    // Get provider skills
-    const skills = await query(
-      `SELECT s.id, s.name, s.category, us.experience_level, us.years_of_experience
-       FROM user_skills us
-       JOIN skills s ON us.skill_id = s.id
-       WHERE us.user_id = ?`,
-      [service.provider_id]
-    );
-    service.provider_skills = skills;
-
     // Get recent reviews for provider
     const reviews = await query(
-      `SELECT r.rating, r.comment, r.created_at, 
+      `SELECT r.rating, r.comment, r.created_at,
               CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') as reviewer_name,
               r.is_anonymous
        FROM reviews r
@@ -244,11 +273,18 @@ router.post('/', [
   body('title').trim().notEmpty().isLength({ min: 3, max: 255 }),
   body('description').trim().notEmpty(),
   body('category_id').optional().isInt({ min: 1 }),
+  body('location').trim().notEmpty().withMessage('Address is required'),
+  body('city').trim().notEmpty().withMessage('City is required'),
   body('price').optional().isFloat({ min: 0 }),
-  body('price_type').optional().isIn(['Fixed', 'Hourly', 'Negotiable', 'Free']),
-  body('location').optional().trim(),
-  body('city').optional().trim(),
-  body('is_remote').optional().isBoolean(),
+  body('price_type').optional().isIn(PRICE_TYPES),
+  body('vehicle_type').optional().isIn(VEHICLE_TYPES),
+  body('slot_count').optional().isInt({ min: 1, max: 100 }),
+  body('is_covered').optional().isBoolean(),
+  body('has_cctv').optional().isBoolean(),
+  body('has_ev_charging').optional().isBoolean(),
+  body('is_24_7').optional().isBoolean(),
+  body('available_from').optional({ values: 'falsy' }).matches(TIME_PATTERN),
+  body('available_to').optional({ values: 'falsy' }).matches(TIME_PATTERN),
   body('duration_minutes').optional().isInt({ min: 15, max: 480 })
 ], async (req, res) => {
   try {
@@ -269,41 +305,51 @@ router.post('/', [
       price_type,
       location,
       city,
-      is_remote,
-      duration_minutes
+      vehicle_type,
+      slot_count,
+      is_covered,
+      has_cctv,
+      has_ev_charging,
+      is_24_7
     } = req.body;
 
     const userId = req.user.id;
+    const finalPriceType = price_type || 'Hourly';
+    const finalPrice = finalPriceType === 'Free' ? 0 : (parseFloat(price) || 0);
+    const allDay = is_24_7 === undefined ? true : toBool(is_24_7);
+    const availableFrom = allDay ? null : toTimeOrNull(req.body.available_from);
+    const availableTo = allDay ? null : toTimeOrNull(req.body.available_to);
 
     const result = await query(
-      `INSERT INTO services (user_id, title, description, category_id, price, price_type, 
-              location, city, is_remote, duration_minutes) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, title, description, category_id, price || 0, price_type || 'Fixed', 
-       location, city, is_remote || false, duration_minutes || 60]
+      `INSERT INTO services (user_id, title, description, category_id, price, price_type,
+              location, city, vehicle_type, slot_count, is_covered, has_cctv, has_ev_charging,
+              is_24_7, available_from, available_to)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, title, description, category_id || null, finalPrice, finalPriceType,
+       location, city, vehicle_type || 'Car', parseInt(slot_count) || 1,
+       toBool(is_covered), toBool(has_cctv), toBool(has_ev_charging),
+       allDay, availableFrom, availableTo]
     );
-
-    const serviceId = result.insertId;
 
     res.status(201).json({
       success: true,
-      message: 'Service created successfully',
+      message: 'Parking space listed successfully',
       data: {
-        id: serviceId,
+        id: result.insertId,
         title,
         description,
         category_id,
-        price,
-        price_type,
+        price: finalPrice,
+        price_type: finalPriceType,
         location,
         city,
-        is_remote,
-        duration_minutes
+        vehicle_type: vehicle_type || 'Car',
+        slot_count: parseInt(slot_count) || 1
       }
     });
 
   } catch (error) {
-    console.error('Create service error:', error);
+    console.error('Create parking space error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -317,11 +363,18 @@ router.put('/:id', [
   body('title').optional().trim().isLength({ min: 3, max: 255 }),
   body('description').optional().trim(),
   body('category_id').optional().isInt({ min: 1 }),
-  body('price').optional().isFloat({ min: 0 }),
-  body('price_type').optional().isIn(['Fixed', 'Hourly', 'Negotiable', 'Free']),
   body('location').optional().trim(),
   body('city').optional().trim(),
-  body('is_remote').optional().isBoolean(),
+  body('price').optional().isFloat({ min: 0 }),
+  body('price_type').optional().isIn(PRICE_TYPES),
+  body('vehicle_type').optional().isIn(VEHICLE_TYPES),
+  body('slot_count').optional().isInt({ min: 1, max: 100 }),
+  body('is_covered').optional().isBoolean(),
+  body('has_cctv').optional().isBoolean(),
+  body('has_ev_charging').optional().isBoolean(),
+  body('is_24_7').optional().isBoolean(),
+  body('available_from').optional({ values: 'falsy' }).matches(TIME_PATTERN),
+  body('available_to').optional({ values: 'falsy' }).matches(TIME_PATTERN),
   body('is_available').optional().isBoolean(),
   body('duration_minutes').optional().isInt({ min: 15, max: 480 })
 ], async (req, res) => {
@@ -343,43 +396,42 @@ router.put('/:id', [
     if (services.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: 'Parking space not found'
       });
     }
 
     if (services[0].user_id !== userId) {
       return res.status(403).json({
         success: false,
-        message: 'You can only update your own services'
+        message: 'You can only update your own parking spaces'
       });
     }
 
-    const {
-      title,
-      description,
-      category_id,
-      price,
-      price_type,
-      location,
-      city,
-      is_remote,
-      is_available,
-      duration_minutes
-    } = req.body;
-
+    const body = req.body;
     const updateFields = [];
     const values = [];
+    const set = (column, value) => { updateFields.push(`${column} = ?`); values.push(value); };
 
-    if (title) { updateFields.push('title = ?'); values.push(title); }
-    if (description) { updateFields.push('description = ?'); values.push(description); }
-    if (category_id) { updateFields.push('category_id = ?'); values.push(category_id); }
-    if (price) { updateFields.push('price = ?'); values.push(price); }
-    if (price_type) { updateFields.push('price_type = ?'); values.push(price_type); }
-    if (location) { updateFields.push('location = ?'); values.push(location); }
-    if (city) { updateFields.push('city = ?'); values.push(city); }
-    if (is_remote !== undefined) { updateFields.push('is_remote = ?'); values.push(is_remote); }
-    if (is_available !== undefined) { updateFields.push('is_available = ?'); values.push(is_available); }
-    if (duration_minutes) { updateFields.push('duration_minutes = ?'); values.push(duration_minutes); }
+    if (body.title) set('title', body.title);
+    if (body.description) set('description', body.description);
+    if (body.category_id) set('category_id', body.category_id);
+    // A Free rate always stores 0; otherwise `!== undefined` lets a price of 0 be saved
+    if (body.price_type === 'Free') set('price', 0);
+    else if (body.price !== undefined && body.price !== '') set('price', parseFloat(body.price) || 0);
+    if (body.price_type) set('price_type', body.price_type);
+    if (body.location) set('location', body.location);
+    if (body.city) set('city', body.city);
+    if (body.vehicle_type) set('vehicle_type', body.vehicle_type);
+    if (body.slot_count) set('slot_count', parseInt(body.slot_count));
+    ['is_covered', 'has_cctv', 'has_ev_charging', 'is_available'].forEach((flag) => {
+      if (body[flag] !== undefined) set(flag, toBool(body[flag]));
+    });
+    if (body.is_24_7 !== undefined) {
+      const allDay = toBool(body.is_24_7);
+      set('is_24_7', allDay);
+      set('available_from', allDay ? null : toTimeOrNull(body.available_from));
+      set('available_to', allDay ? null : toTimeOrNull(body.available_to));
+    }
 
     if (updateFields.length === 0) {
       return res.status(400).json({
@@ -395,7 +447,7 @@ router.put('/:id', [
 
     res.json({
       success: true,
-      message: 'Service updated successfully'
+      message: 'Parking space updated successfully'
     });
 
   } catch (error) {
@@ -418,14 +470,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     if (services.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found'
+        message: 'Parking space not found'
       });
     }
 
     if (services[0].user_id !== userId) {
       return res.status(403).json({
         success: false,
-        message: 'You can only delete your own services'
+        message: 'You can only delete your own parking spaces'
       });
     }
 
@@ -433,7 +485,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Service deleted successfully'
+      message: 'Parking space removed successfully'
     });
 
   } catch (error) {
@@ -470,25 +522,28 @@ router.get('/categories/all', async (req, res) => {
 router.get('/provider/:providerId', async (req, res) => {
   try {
     const { providerId } = req.params;
-    const { page = 1, limit = 12 } = req.query;
+    const { page = 1, limit = 12, includeUnavailable } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    // The host's dashboard also lists spaces they have paused
+    const availability = includeUnavailable === 'true' ? '' : ' AND s.is_available = 1';
 
     const services = await query(
-      `SELECT 
+      `SELECT
         s.id, s.title, s.description, s.price, s.price_type, s.location, s.city,
         s.is_remote, s.is_available, s.duration_minutes, s.views_count, s.created_at,
-        sc.name as category_name
+        s.status, ${PARKING_COLUMNS},
+        sc.id as category_id, sc.name as category_name
       FROM services s
       LEFT JOIN service_categories sc ON s.category_id = sc.id
-      WHERE s.user_id = ? AND s.status = 'Active' AND s.is_available = 1
+      WHERE s.user_id = ? AND s.status = 'Active'${availability}
       ORDER BY s.created_at DESC
       LIMIT ? OFFSET ?`,
       [providerId, parseInt(limit), offset]
     );
 
     const countResult = await query(
-      'SELECT COUNT(*) as total FROM services WHERE user_id = ? AND status = ? AND is_available = 1',
+      `SELECT COUNT(*) as total FROM services s WHERE s.user_id = ? AND s.status = ?${availability}`,
       [providerId, 'Active']
     );
 

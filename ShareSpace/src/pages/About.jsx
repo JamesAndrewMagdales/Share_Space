@@ -1,177 +1,66 @@
-import React from 'react';
-import { 
-  Target, 
-  Eye, 
-  Heart,
-  Users,
-  Award,
-  Globe,
-  Star,
-  CheckCircle
-} from 'lucide-react';
-import './About.css';
+import { Link } from 'react-router-dom';
+import { Search, CalendarCheck, ParkingSquare, ListPlus, CheckCircle2, Wallet, ShieldCheck, Car, Clock, ArrowRight } from 'lucide-react';
+import './InfoPages.css';
 
-const About = () => {
-  const team = [
-    { name: 'John Doe', role: 'CEO & Founder', avatar: null },
-    { name: 'Sarah Johnson', role: 'CTO', avatar: null },
-    { name: 'Mike Chen', role: 'Head of Product', avatar: null },
-    { name: 'Emma Wilson', role: 'Lead Designer', avatar: null },
-  ];
+const FAQ = [
+  ['How do I pay?', 'ShareSpace doesn’t take payments yet. Once a host approves your booking, you pay them directly, for example in cash or by e-wallet, as you agree.'],
+  ['What if the host doesn’t respond?', 'Your request stays “Pending” until the host answers. You can cancel it any time from My bookings and book another space.'],
+  ['Can I list more than one slot?', 'Yes. Set “Available slots” when you list a space, or create separate listings for different locations.'],
+  ['Is my exact address public?', 'Drivers see the street or area and city you enter. Share gate codes or exact directions after you approve a booking.'],
+  ['How do reviews work?', 'After a booking is marked completed, the driver can rate the host from 1 to 5 stars. Ratings show on every listing.']
+];
 
-  const stats = [
-    { icon: Users, value: '10K+', label: 'Active Users' },
-    { icon: Star, value: '4.8', label: 'Average Rating' },
-    { icon: Globe, value: '50+', label: 'Cities Covered' },
-    { icon: Award, value: '15K+', label: 'Services Listed' },
-  ];
+const About = () => (
+  <div className="info-page">
+    <section className="info-hero">
+      <div className="container container-narrow center">
+        <span className="eyebrow">How it works</span>
+        <h1>Parking that already exists, shared</h1>
+        <p>Garages sit empty during office hours. Driveways stay unused all day. ShareSpace connects those spaces with drivers who need them, so hosts earn and drivers stop circling the block.</p>
+      </div>
+    </section>
 
-  const values = [
-    {
-      icon: Target,
-      title: 'Our Mission',
-      description: 'To connect talented service providers with clients who need their skills, creating opportunities for everyone in the community.'
-    },
-    {
-      icon: Eye,
-      title: 'Our Vision',
-      description: 'To be the leading platform for local services, where trust and quality meet convenience and affordability.'
-    },
-    {
-      icon: Heart,
-      title: 'Our Values',
-      description: 'We believe in transparency, quality, and community. Every interaction on our platform is built on trust and mutual respect.'
-    }
-  ];
-
-  return (
-    <div className="about-page">
-      {/* Hero Section */}
-      <section className="about-hero">
-        <div className="hero-content">
-          <h1>About ShareSpace</h1>
-          <p>Empowering communities through shared skills and services</p>
+    <section className="container info-section">
+      <div className="two-col">
+        <div className="card card-pad">
+          <div className="role-head"><Car size={22} /><h2>For drivers</h2></div>
+          <ol className="role-steps">
+            <li><Search size={18} /><div><strong>Search</strong><p>Filter by area, vehicle size, covered parking, CCTV or EV charging.</p></div></li>
+            <li><CalendarCheck size={18} /><div><strong>Request</strong><p>Choose a date, arrival time and duration. The total is shown before you send.</p></div></li>
+            <li><ParkingSquare size={18} /><div><strong>Park</strong><p>Once approved, drive in. Review the host afterwards.</p></div></li>
+          </ol>
+          <Link to="/search" className="btn btn-primary">Find parking <ArrowRight size={16} /></Link>
         </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="stats-section">
-        <div className="stats-container">
-          {stats.map((stat, index) => (
-            <div key={index} className="stat-card">
-              <div className="stat-icon">
-                <stat.icon size={32} />
-              </div>
-              <div className="stat-content">
-                <span className="stat-value">{stat.value}</span>
-                <span className="stat-label">{stat.label}</span>
-              </div>
-            </div>
-          ))}
+        <div className="card card-pad">
+          <div className="role-head"><Wallet size={22} /><h2>For hosts</h2></div>
+          <ol className="role-steps">
+            <li><ListPlus size={18} /><div><strong>List</strong><p>Add your address, slot size, hours, photo and your hourly, daily or monthly rate.</p></div></li>
+            <li><CheckCircle2 size={18} /><div><strong>Approve</strong><p>Every request shows the driver’s plate and schedule. You decide.</p></div></li>
+            <li><Clock size={18} /><div><strong>Stay in control</strong><p>Pause bookings any time, edit your listing, or remove it.</p></div></li>
+          </ol>
+          <Link to="/list-space" className="btn btn-secondary">List your space <ArrowRight size={16} /></Link>
         </div>
-      </section>
+      </div>
+    </section>
 
-      {/* Mission, Vision, Values */}
-      <section className="mvv-section">
-        <div className="mvv-container">
-          {values.map((item, index) => (
-            <div key={index} className="mvv-card">
-              <div className="mvv-icon">
-                <item.icon size={48} />
-              </div>
-              <h2>{item.title}</h2>
-              <p>{item.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Story Section */}
-      <section className="story-section">
-        <div className="story-container">
-          <div className="story-content">
-            <h2>Our Story</h2>
-            <p>
-              ShareSpace was born from a simple idea: everyone has something valuable to share. 
-              Whether it's a skill, a service, or expertise, we believe that connecting people 
-              through these offerings can transform communities.
-            </p>
-            <p>
-              Founded in 2024, we set out to create a platform where service providers could 
-              easily connect with clients, and where quality and trust were at the heart of 
-              every transaction. Today, we're proud to serve thousands of users across the 
-              country, helping them find the services they need and grow their businesses.
-            </p>
-            <p>
-              Our platform is designed to be simple, secure, and effective. We've built 
-              features that matter most to our users: easy service discovery, secure 
-              messaging, transparent reviews, and reliable support.
-            </p>
-          </div>
-          <div className="story-features">
-            <h3>Why Choose ShareSpace?</h3>
-            <div className="feature-list">
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>Verified service providers</span>
-              </div>
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>Transparent reviews and ratings</span>
-              </div>
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>Secure messaging system</span>
-              </div>
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>Easy service discovery</span>
-              </div>
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>24/7 customer support</span>
-              </div>
-              <div className="feature-item">
-                <CheckCircle size={24} />
-                <span>Money-back guarantee</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="team-section">
-        <div className="team-container">
-          <h2>Meet Our Team</h2>
-          <p className="team-subtitle">The people behind ShareSpace</p>
-          <div className="team-grid">
-            {team.map((member, index) => (
-              <div key={index} className="team-card">
-                <div className="team-avatar">
-                  <Users size={48} />
-                </div>
-                <h3>{member.name}</h3>
-                <p>{member.role}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="cta-section">
-        <div className="cta-content">
-          <h2>Ready to Get Started?</h2>
-          <p>Join thousands of users who are already sharing their skills and services.</p>
-          <div className="cta-buttons">
-            <button className="cta-btn primary">Sign Up Now</button>
-            <button className="cta-btn secondary">Learn More</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-};
+    <section className="container container-narrow info-section">
+      <div className="center">
+        <span className="eyebrow"><ShieldCheck size={14} /> Questions</span>
+        <h2 className="faq-title">Frequently asked</h2>
+      </div>
+      <div className="faq">
+        {FAQ.map(([q, a]) => (
+          <details key={q} className="card">
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))}
+      </div>
+      <p className="center muted" style={{ marginTop: 28 }}>
+        Still stuck? <Link to="/contact">Contact us</Link>.
+      </p>
+    </section>
+  </div>
+);
 
 export default About;

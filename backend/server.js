@@ -68,7 +68,7 @@ app.use('/api/users', userRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'ShareServe API is running',
+    message: 'ShareSpace API is running',
     timestamp: new Date().toISOString()
   });
 });
@@ -103,7 +103,7 @@ const startServer = async () => {
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
-║   🚀 ShareServe API Server                           ║
+║   🚀 ShareSpace API Server                           ║
 ║   📡 Port: ${PORT}                                    ║
 ║   🌍 Environment: ${process.env.NODE_ENV || 'development'}                          ║
 ║   📁 URL: http://localhost:${PORT}                    ║

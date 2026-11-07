@@ -1,5 +1,9 @@
--- ShareServe Database Schema
--- MySQL Database Design for Community Skill-Sharing Platform
+-- ShareSpace Database Schema
+-- MySQL Database Design for Peer-to-Peer Parking Slot Sharing
+--
+-- Table names are kept from the original version:
+--   services = parking space listings, service_categories = parking types,
+--   service_requests = booking requests from drivers
 
 -- ============================================
 -- USERS TABLE
@@ -77,20 +81,16 @@ CREATE TABLE service_categories (
     INDEX idx_name (name)
 );
 
--- Insert default categories
+-- Insert parking types (ids 1-8 are used by the frontend fallback list)
 INSERT INTO service_categories (name, description, icon) VALUES
-('Home & Garden', 'Home improvement, gardening, repairs', 'Home'),
-('Tech & IT', 'Computer help, software, web development', 'Laptop'),
-('Teaching & Tutoring', 'Academic help, language lessons, music', 'Book'),
-('Health & Wellness', 'Fitness, massage, nutrition advice', 'Heart'),
-('Beauty & Personal Care', 'Hair, makeup, skincare services', 'Sparkles'),
-('Automotive', 'Car repair, maintenance, detailing', 'Car'),
-('Events & Photography', 'Event planning, photography services', 'Camera'),
-('Writing & Translation', 'Content writing, translation services', 'Pen'),
-('Art & Craft', 'Custom artwork, crafts, DIY projects', 'Palette'),
-('Business & Legal', 'Consulting, accounting, legal advice', 'Briefcase'),
-('Moving & Delivery', 'Moving help, delivery services', 'Truck'),
-('Cleaning & Laundry', 'House cleaning, laundry services', 'SprayCan');
+('Garage', 'Enclosed private garage', 'Warehouse'),
+('Driveway', 'Private driveway in front of a house', 'Home'),
+('Open Lot', 'Uncovered open-air parking lot', 'SquareParking'),
+('Covered Carport', 'Roofed carport or shade', 'Umbrella'),
+('Basement / Building', 'Condo or building basement slot', 'Building2'),
+('Street-side', 'Legal street-side space in front of property', 'Signpost'),
+('Motorcycle Slot', 'Space sized for motorcycles and scooters', 'Bike'),
+('Commercial Lot', 'Business or mall lot with spare slots', 'Store');
 
 -- ============================================
 -- SERVICES TABLE
@@ -102,9 +102,17 @@ CREATE TABLE services (
     description TEXT NOT NULL,
     category_id INT,
     price DECIMAL(10,2) DEFAULT 0.00,
-    price_type ENUM('Fixed', 'Hourly', 'Negotiable', 'Free') DEFAULT 'Fixed',
+    price_type ENUM('Hourly', 'Daily', 'Monthly', 'Free') DEFAULT 'Hourly',
     location VARCHAR(255),
     city VARCHAR(100),
+    vehicle_type ENUM('Car', 'Motorcycle', 'SUV/Van', 'Truck', 'Any') DEFAULT 'Car',
+    slot_count INT DEFAULT 1,
+    is_covered BOOLEAN DEFAULT FALSE,
+    has_cctv BOOLEAN DEFAULT FALSE,
+    has_ev_charging BOOLEAN DEFAULT FALSE,
+    is_24_7 BOOLEAN DEFAULT TRUE,
+    available_from TIME NULL,
+    available_to TIME NULL,
     is_remote BOOLEAN DEFAULT FALSE,
     duration_minutes INT DEFAULT 60,
     is_available BOOLEAN DEFAULT TRUE,
@@ -145,6 +153,8 @@ CREATE TABLE service_requests (
     requester_id INT NOT NULL,
     provider_id INT NOT NULL,
     message TEXT,
+    vehicle_plate VARCHAR(20),
+    vehicle_type VARCHAR(20),
     preferred_date DATE,
     preferred_time TIME,
     duration_minutes INT DEFAULT 60,
@@ -357,6 +367,9 @@ SELECT
     s.price_type,
     s.location,
     s.city,
+    s.vehicle_type,
+    s.slot_count,
+    s.is_covered,
     s.is_remote,
     s.is_available,
     s.status,

@@ -1,169 +1,89 @@
-import React, { useState } from 'react';
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Send,
-  Clock,
-  MessageCircle
-} from 'lucide-react';
-import './Contact.css';
+import { useState } from 'react';
+import { Mail, MessageSquare, AlertCircle, CheckCircle2, Send } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { sendContactMessage } from '../lib/api';
+import './InfoPages.css';
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+  const { user, profile } = useAuth();
+  const [form, setForm] = useState({
+    name: [profile?.first_name, profile?.last_name].filter(Boolean).join(' '),
+    email: user?.email || '',
     subject: '',
     message: ''
   });
-  const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const onChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 3000);
+    setSending(true);
+    setError('');
+    try {
+      await sendContactMessage({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        subject: form.subject.trim(),
+        message: form.message.trim()
+      });
+      setSent(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="contact-page">
-      <div className="contact-hero">
-        <h1>Contact Us</h1>
-        <p>Get in touch with our team. We'd love to hear from you!</p>
-      </div>
-
-      <div className="contact-content">
-        <div className="contact-info">
-          <div className="info-card">
-            <div className="info-icon">
-              <Mail size={24} />
-            </div>
-            <div className="info-content">
-              <h3>Email Us</h3>
-              <p>info@sharespace.com</p>
-              <p>support@sharespace.com</p>
-            </div>
-          </div>
-
-          <div className="info-card">
-            <div className="info-icon">
-              <Phone size={24} />
-            </div>
-            <div className="info-content">
-              <h3>Call Us</h3>
-              <p>+63 123 456 7890</p>
-              <p>Mon-Fri, 9AM-6PM</p>
-            </div>
-          </div>
-
-          <div className="info-card">
-            <div className="info-icon">
-              <MapPin size={24} />
-            </div>
-            <div className="info-content">
-              <h3>Visit Us</h3>
-              <p>123 Tech Street</p>
-              <p>Manila, Philippines</p>
-            </div>
-          </div>
-
-          <div className="info-card">
-            <div className="info-icon">
-              <Clock size={24} />
-            </div>
-            <div className="info-content">
-              <h3>Business Hours</h3>
-              <p>Monday - Friday: 9AM - 6PM</p>
-              <p>Saturday - Sunday: Closed</p>
-            </div>
-          </div>
+    <div className="info-page">
+      <section className="info-hero">
+        <div className="container container-narrow center">
+          <span className="eyebrow">Contact</span>
+          <h1>We’re here to help</h1>
+          <p>Questions about a booking, your listing, or ShareSpace in general? Send us a message.</p>
         </div>
+      </section>
 
-        <div className="contact-form-container">
-          <div className="form-header">
-            <MessageCircle size={32} />
-            <h2>Send us a Message</h2>
-            <p>Fill out the form below and we'll get back to you as soon as possible.</p>
+      <section className="container info-section contact-grid">
+        <aside className="contact-side">
+          <div className="card card-pad">
+            <MessageSquare size={22} className="side-icon" />
+            <h3>About a booking?</h3>
+            <p className="muted small">Include the space name and date so we can find it quickly.</p>
           </div>
+          <div className="card card-pad">
+            <Mail size={22} className="side-icon" />
+            <h3>We reply by email</h3>
+            <p className="muted small">Usually within one or two working days.</p>
+          </div>
+        </aside>
 
-          {submitted ? (
-            <div className="success-message">
-              <div className="success-icon">✓</div>
-              <h3>Message Sent!</h3>
-              <p>Thank you for contacting us. We'll respond shortly.</p>
+        <div className="card card-pad">
+          {sent ? (
+            <div className="empty">
+              <div className="empty-icon"><CheckCircle2 size={28} /></div>
+              <h3>Message sent</h3>
+              <p>Thanks, {form.name.split(' ')[0] || 'there'}! We’ll reply to {form.email}.</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="contact-form">
-              <div className="form-group">
-                <label htmlFor="name">Full Name *</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  placeholder="Enter your full name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
+            <form onSubmit={submit}>
+              {error && <div className="alert alert-error" role="alert"><AlertCircle size={18} /><span>{error}</span></div>}
+              <div className="field-row">
+                <div className="field"><label htmlFor="name">Name</label><input id="name" name="name" autoComplete="name" value={form.name} onChange={onChange} required maxLength={120} /></div>
+                <div className="field"><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" value={form.email} onChange={onChange} required /></div>
               </div>
-
-              <div className="form-group">
-                <label htmlFor="email">Email Address *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="subject">Subject *</label>
-                <input
-                  type="text"
-                  id="subject"
-                  name="subject"
-                  placeholder="What is this about?"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="message">Message *</label>
-                <textarea
-                  id="message"
-                  name="message"
-                  placeholder="Tell us how we can help..."
-                  value={formData.message}
-                  onChange={handleChange}
-                  rows="6"
-                  required
-                />
-              </div>
-
-              <button type="submit" className="submit-btn">
-                <Send size={20} />
-                Send Message
+              <div className="field"><label htmlFor="subject">Subject <span className="optional">(optional)</span></label><input id="subject" name="subject" value={form.subject} onChange={onChange} maxLength={200} /></div>
+              <div className="field"><label htmlFor="message">Message</label><textarea id="message" name="message" rows={6} value={form.message} onChange={onChange} required maxLength={5000} /></div>
+              <button type="submit" className="btn btn-primary btn-lg" disabled={sending}>
+                {sending ? <><span className="spinner" /> Sending…</> : <><Send size={18} /> Send message</>}
               </button>
             </form>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 };

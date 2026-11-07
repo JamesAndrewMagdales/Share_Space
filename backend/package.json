@@ -1,7 +1,7 @@
 {
   "name": "shareserve-backend",
   "version": "1.0.0",
-  "description": "Backend API for ShareServe community skill-sharing platform",
+  "description": "Backend API for ShareSpace peer-to-peer parking slot sharing",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -9,8 +9,8 @@
     "dev": "nodemon server.js",
     "test": "jest"
   },
-  "keywords": ["community", "skill-sharing", "services", "local"],
-  "author": "ShareServe Team",
+  "keywords": ["community", "parking", "sharing", "local"],
+  "author": "ShareSpace Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
